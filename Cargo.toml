@@ -1,0 +1,20 @@
+[package]
+name = 'sntp_request'
+version = '1.0.0'
+authors = ['Silvio Clecio (silvioprog) <silvioprog@gmail.com>']
+license = 'MIT/Apache-2.0'
+description = 'Tiny Rust library to request timestamp from NTP servers trough SNTP protocol.'
+homepage = 'https://github.com/risoflora/sntp_request'
+repository = 'https://github.com/risoflora/sntp_request'
+readme = 'README.md'
+keywords = [
+    'sntp',
+    'sntp-client',
+]
+categories = [
+    'date-and-time',
+    'network-programming',
+]
+
+[dev-dependencies]
+chrono = '0.4.10'
