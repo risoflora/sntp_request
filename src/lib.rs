@@ -19,7 +19,7 @@
 //! ```
 
 use std::convert::TryInto;
-use std::io;
+use std::io::{self, Error, ErrorKind};
 use std::mem;
 use std::net::{ToSocketAddrs, UdpSocket};
 use std::time::Duration;
@@ -63,10 +63,44 @@ impl SntpRequest {
     pub fn get_raw_time_by_addr<A: ToSocketAddrs>(&self, addr: A) -> io::Result<u32> {
         const BUF_SIZE: usize = 48;
         let mut buf = [0u8; BUF_SIZE];
-        buf[0] = 0x1b;
-        self.socket.send_to(&buf, addr)?;
-        self.socket.recv_from(&mut buf)?;
-        Ok(read_be_u32!(&mut &buf[40..44]))
+        // header - 8 bit:
+        // LI (2 bit) - 3 (not in sync), VN (3 bit) - 4 (version),
+        // mode (3 bit) - 3 (client)
+        buf[0] = (3 << 6) | (4 << 3) | 3;
+        match self.socket.send_to(&buf, addr) {
+            Ok(sent) => {
+                if sent != BUF_SIZE {
+                    return Err(Error::new(
+                        ErrorKind::InvalidData,
+                        "Invalid SNTP packet size sent",
+                    ));
+                }
+            }
+            Err(error) => return Err(error),
+        }
+        match self.socket.recv_from(&mut buf) {
+            Ok((recv, _)) => {
+                if recv != BUF_SIZE {
+                    return Err(Error::new(
+                        ErrorKind::InvalidData,
+                        "Invalid SNTP packet size received",
+                    ));
+                }
+                let hdr = buf[0];
+                if (hdr & 0x38) >> 3 != 4 {
+                    return Err(Error::new(
+                        ErrorKind::Other,
+                        "Server returned wrong SNTP version",
+                    ));
+                }
+                let mode = hdr & 0x7;
+                if mode != 4 && mode != 5 {
+                    return Err(Error::new(ErrorKind::Other, "Not a SNTP server reply"));
+                }
+                Ok(read_be_u32!(&mut &buf[40..44]))
+            }
+            Err(error) => return Err(error),
+        }
     }
 
     /// Obtains the [Unix time](https://en.wikipedia.org/wiki/Unix_time) from a NTP server address.
