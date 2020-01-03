@@ -1,6 +1,6 @@
 [package]
 name = 'sntp_request'
-version = '1.0.0'
+version = '1.0.1'
 authors = ['Silvio Clecio (silvioprog) <silvioprog@gmail.com>']
 license = 'MIT/Apache-2.0'
 description = 'Tiny Rust library to request timestamp from NTP servers trough SNTP protocol.'
