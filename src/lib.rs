@@ -18,6 +18,7 @@
 //! }
 //! ```
 
+use std::cell::Cell;
 use std::convert::TryInto;
 use std::io::{self, Error, ErrorKind};
 use std::mem;
@@ -40,6 +41,7 @@ pub const POOL_NTP_ADDR: &str = "pool.ntp.org:123";
 /// SNTP object which holds the socket handle to obtain timestamp from NTP servers.
 pub struct SntpRequest {
     socket: UdpSocket,
+    kiss_of_death: Cell<bool>,
 }
 
 /// Specialized type for raw time result.
@@ -53,9 +55,15 @@ impl SntpRequest {
     pub fn new() -> SntpRequest {
         let sntp = SntpRequest {
             socket: UdpSocket::bind("0.0.0.0:0").unwrap(),
+            kiss_of_death: Cell::new(false),
         };
         sntp.set_timeout(Duration::from_secs(5)).unwrap();
         sntp
+    }
+
+    /// If server returns `true`, the user should not send requests to it.
+    pub fn is_kiss_of_death(&self) -> bool {
+        self.kiss_of_death.get()
     }
 
     /// Sets the inactivity time to the client get time out. If not specified, the client assumes 5 seconds as default.
@@ -103,6 +111,7 @@ impl SntpRequest {
                 if mode != 4 && mode != 5 {
                     return Err(Error::new(ErrorKind::Other, "Not a SNTP server reply"));
                 }
+                self.kiss_of_death.set(buf[1] == 0);
                 Ok(read_be_u32!(&mut &buf[40..44]))
             }
             Err(error) => return Err(error),
