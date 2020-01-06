@@ -43,10 +43,10 @@ pub struct SntpRequest {
 }
 
 /// Specialized type for raw time result.
-pub type RawTimeResult = io::Result<u32>;
+pub type SntpRawTimeResult = io::Result<u32>;
 
 /// Specialized type for Unix time result.
-pub type UnixTimeResult = io::Result<i64>;
+pub type SntpUnixTimeResult = io::Result<i64>;
 
 impl SntpRequest {
     /// Creates a new SNTP request object.
@@ -66,7 +66,7 @@ impl SntpRequest {
     }
 
     /// Obtains the raw time from a NTP server address.
-    pub fn get_raw_time_by_addr<A: ToSocketAddrs>(&self, addr: A) -> RawTimeResult {
+    pub fn get_raw_time_by_addr<A: ToSocketAddrs>(&self, addr: A) -> SntpRawTimeResult {
         const BUF_SIZE: usize = 48;
         let mut buf = [0u8; BUF_SIZE];
         // header - 8 bit:
@@ -110,18 +110,18 @@ impl SntpRequest {
     }
 
     /// Obtains the [Unix time](https://en.wikipedia.org/wiki/Unix_time) from a NTP server address.
-    pub fn get_unix_time_by_addr<A: ToSocketAddrs>(&self, addr: A) -> UnixTimeResult {
+    pub fn get_unix_time_by_addr<A: ToSocketAddrs>(&self, addr: A) -> SntpUnixTimeResult {
         let raw_time = self.get_raw_time_by_addr(addr)?;
         Ok((raw_time - 2_208_988_800) as i64)
     }
 
     /// Obtains the raw time from default NTP server address [`POOL_NTP_ADDR`](constant.POOL_NTP_ADDR.html).
-    pub fn get_raw_time(&self) -> RawTimeResult {
+    pub fn get_raw_time(&self) -> SntpRawTimeResult {
         self.get_raw_time_by_addr(POOL_NTP_ADDR)
     }
 
     /// Obtains the [Unix time](https://en.wikipedia.org/wiki/Unix_time) from default NTP server address [`POOL_NTP_ADDR`](constant.POOL_NTP_ADDR.html).
-    pub fn get_unix_time(&self) -> UnixTimeResult {
+    pub fn get_unix_time(&self) -> SntpUnixTimeResult {
         self.get_unix_time_by_addr(POOL_NTP_ADDR)
     }
 }
