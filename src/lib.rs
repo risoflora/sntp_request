@@ -25,14 +25,15 @@ use std::mem;
 use std::net::{ToSocketAddrs, UdpSocket};
 use std::time::Duration;
 
-#[doc(hidden)]
-#[macro_export]
-macro_rules! read_be_u32 {
-    ($input:expr) => {{
-        let (int_bytes, rest) = $input.split_at(mem::size_of::<u32>());
-        *$input = rest;
-        u32::from_be_bytes(int_bytes.try_into().unwrap())
-    }};
+const SNTP_TIME_OFFSET: u32 = 2_208_988_800;
+
+const SNTP_PACKET_SIZE: usize = 48;
+
+#[inline]
+fn read_be_u32(input: &mut &[u8]) -> u32 {
+    let (int_bytes, rest) = input.split_at(mem::size_of::<u32>());
+    *input = rest;
+    u32::from_be_bytes(int_bytes.try_into().unwrap())
 }
 
 /// Default public NTP address.
@@ -61,6 +62,53 @@ impl SntpRequest {
         sntp
     }
 
+    #[inline]
+    fn send_packet<A: ToSocketAddrs>(&self, addr: A, packet: &mut [u8]) -> SntpRawTimeResult {
+        // LI (2 bit) - 3 (not in sync), VN (3 bit) - 4 (version),
+        // mode (3 bit) - 3 (client)
+        packet[0] = (3 << 6) | (4 << 3) | 3;
+        match self.socket.send_to(&packet, addr) {
+            Ok(sent) => {
+                if sent != SNTP_PACKET_SIZE {
+                    return Err(Error::new(
+                        ErrorKind::InvalidData,
+                        "Invalid SNTP packet size sent",
+                    ));
+                }
+                Ok(sent as u32)
+            }
+            Err(error) => return Err(error),
+        }
+    }
+
+    #[inline]
+    fn recv_packet(&self, packet: &mut [u8]) -> SntpRawTimeResult {
+        match self.socket.recv_from(packet) {
+            Ok((recv, _)) => {
+                if recv != SNTP_PACKET_SIZE {
+                    return Err(Error::new(
+                        ErrorKind::InvalidData,
+                        "Invalid SNTP packet size received",
+                    ));
+                }
+                let hdr = packet[0];
+                if (hdr & 0x38) >> 3 != 4 {
+                    return Err(Error::new(
+                        ErrorKind::Other,
+                        "Server returned wrong SNTP version",
+                    ));
+                }
+                let mode = hdr & 0x7;
+                if mode != 4 && mode != 5 {
+                    return Err(Error::new(ErrorKind::Other, "Not a SNTP server reply"));
+                }
+                self.kiss_of_death.set(packet[1] == 0);
+                Ok(read_be_u32(&mut &packet[40..44]))
+            }
+            Err(error) => return Err(error),
+        }
+    }
+
     /// If server returns `true`, the user should not send requests to it.
     pub fn is_kiss_of_death(&self) -> bool {
         self.kiss_of_death.get()
@@ -75,53 +123,15 @@ impl SntpRequest {
 
     /// Obtains the raw time from a NTP server address.
     pub fn get_raw_time_by_addr<A: ToSocketAddrs>(&self, addr: A) -> SntpRawTimeResult {
-        const BUF_SIZE: usize = 48;
-        let mut buf = [0u8; BUF_SIZE];
-        // header - 8 bit:
-        // LI (2 bit) - 3 (not in sync), VN (3 bit) - 4 (version),
-        // mode (3 bit) - 3 (client)
-        buf[0] = (3 << 6) | (4 << 3) | 3;
-        match self.socket.send_to(&buf, addr) {
-            Ok(sent) => {
-                if sent != BUF_SIZE {
-                    return Err(Error::new(
-                        ErrorKind::InvalidData,
-                        "Invalid SNTP packet size sent",
-                    ));
-                }
-            }
-            Err(error) => return Err(error),
-        }
-        match self.socket.recv_from(&mut buf) {
-            Ok((recv, _)) => {
-                if recv != BUF_SIZE {
-                    return Err(Error::new(
-                        ErrorKind::InvalidData,
-                        "Invalid SNTP packet size received",
-                    ));
-                }
-                let hdr = buf[0];
-                if (hdr & 0x38) >> 3 != 4 {
-                    return Err(Error::new(
-                        ErrorKind::Other,
-                        "Server returned wrong SNTP version",
-                    ));
-                }
-                let mode = hdr & 0x7;
-                if mode != 4 && mode != 5 {
-                    return Err(Error::new(ErrorKind::Other, "Not a SNTP server reply"));
-                }
-                self.kiss_of_death.set(buf[1] == 0);
-                Ok(read_be_u32!(&mut &buf[40..44]))
-            }
-            Err(error) => return Err(error),
-        }
+        let mut packet = [0u8; SNTP_PACKET_SIZE];
+        self.send_packet(addr, &mut packet)?;
+        self.recv_packet(&mut packet)
     }
 
     /// Obtains the [Unix time](https://en.wikipedia.org/wiki/Unix_time) from a NTP server address.
     pub fn get_unix_time_by_addr<A: ToSocketAddrs>(&self, addr: A) -> SntpUnixTimeResult {
         let raw_time = self.get_raw_time_by_addr(addr)?;
-        Ok((raw_time - 2_208_988_800) as i64)
+        Ok((raw_time - SNTP_TIME_OFFSET) as i64)
     }
 
     /// Obtains the raw time from default NTP server address [`POOL_NTP_ADDR`](constant.POOL_NTP_ADDR.html).

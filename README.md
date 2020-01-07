@@ -40,7 +40,7 @@ Add this to your `Cargo.toml`:
 
 ```ini
 [dependencies]
-sntp_request = "1.0.0"
+sntp_request = "1.1.1"
 ```
 
 and this to your crate root:
@@ -57,5 +57,5 @@ Pull Requests and Issues are welcome!
 
 `sntp_request` is licensed under either of the following, at your option:
 
-- Apache License 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
-- MIT License ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+- Apache License 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT License ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
