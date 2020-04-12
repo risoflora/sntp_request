@@ -30,9 +30,8 @@ const SNTP_TIME_OFFSET: u32 = 2_208_988_800;
 const SNTP_PACKET_SIZE: usize = 48;
 
 #[inline]
-fn read_be_u32(input: &mut &[u8]) -> u32 {
-    let (int_bytes, rest) = input.split_at(mem::size_of::<u32>());
-    *input = rest;
+fn read_be_u32(input: &[u8]) -> u32 {
+    let (int_bytes, _) = input.split_at(mem::size_of::<u32>());
     u32::from_be_bytes(int_bytes.try_into().unwrap())
 }
 
@@ -45,8 +44,14 @@ pub struct SntpRequest {
     kiss_of_death: Cell<bool>,
 }
 
+/// SNTP timestamp
+pub struct SntpTimestamp {
+    pub secs: u32,
+    pub frac: u32,
+}
+
 /// Specialized type for raw time result.
-pub type SntpRawTimeResult = io::Result<u32>;
+pub type SntpRawTimeResult = io::Result<SntpTimestamp>;
 
 /// Specialized type for Unix time result.
 pub type SntpUnixTimeResult = io::Result<i64>;
@@ -63,7 +68,7 @@ impl SntpRequest {
     }
 
     #[inline]
-    fn send_packet<A: ToSocketAddrs>(&self, addr: A, packet: &mut [u8]) -> SntpRawTimeResult {
+    fn send_packet<A: ToSocketAddrs>(&self, addr: A, packet: &mut [u8]) -> io::Result<u32> {
         // LI (2 bit) - 3 (not in sync), VN (3 bit) - 4 (version),
         // mode (3 bit) - 3 (client)
         packet[0] = (3 << 6) | (4 << 3) | 3;
@@ -103,7 +108,11 @@ impl SntpRequest {
                     return Err(Error::new(ErrorKind::Other, "Not a SNTP server reply"));
                 }
                 self.kiss_of_death.set(packet[1] == 0);
-                Ok(read_be_u32(&mut &packet[40..44]))
+                let timestamp = SntpTimestamp {
+                    secs: read_be_u32(&packet[40..44]),
+                    frac: read_be_u32(&packet[44..48]),
+                };
+                Ok(timestamp)
             }
             Err(error) => return Err(error),
         }
@@ -131,7 +140,8 @@ impl SntpRequest {
     /// Obtains the [Unix time](https://en.wikipedia.org/wiki/Unix_time) from a NTP server address.
     pub fn get_unix_time_by_addr<A: ToSocketAddrs>(&self, addr: A) -> SntpUnixTimeResult {
         let raw_time = self.get_raw_time_by_addr(addr)?;
-        Ok((raw_time - SNTP_TIME_OFFSET) as i64)
+        let raw_secs = raw_time.secs;
+        Ok((raw_secs - SNTP_TIME_OFFSET) as i64)
     }
 
     /// Obtains the raw time from default NTP server address [`POOL_NTP_ADDR`](constant.POOL_NTP_ADDR.html).
