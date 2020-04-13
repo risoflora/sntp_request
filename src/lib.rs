@@ -44,9 +44,11 @@ pub struct SntpRequest {
     kiss_of_death: Cell<bool>,
 }
 
-/// SNTP timestamp
+/// SNTP timestamp.
 pub struct SntpTimestamp {
+    /// Seconds since era epoch.
     pub secs: u32,
+    /// Fraction of second.
     pub frac: u32,
 }
 
