@@ -14,7 +14,7 @@
 [license-badge]: https://img.shields.io/crates/l/sntp_request.svg
 [license-url]: https://github.com/risoflora/sntp_request#license
 
-`sntp_request` Tiny Rust library to request timestamp from [NTP servers](http://www.ntp.org) trough [SNTP protocol](https://tools.ietf.org/html/rfc4330).
+`sntp_request` Tiny Rust library to request timestamp from [NTP servers](http://www.ntp.org) through [SNTP protocol](https://tools.ietf.org/html/rfc4330).
 
 ## Example
 
