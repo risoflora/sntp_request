@@ -44,7 +44,7 @@ Pull Requests are welcome! =)
 
 `sntp_request` is licensed under the [Apache License 2.0](LICENSE-APACHE) or [MIT License](LICENSE-MIT).
 
-[ci-cd-badge]: https://img.shields.io/github/actions/workflow/status/risoflora/sntp_request/CI.yml?branch=main
+[ci-cd-badge]: https://github.com/risoflora/sntp_request/actions/workflows/CI.yml/badge.svg
 [ci-cd-url]: https://github.com/risoflora/sntp_request/actions/workflows/CI.yml
 [crates-badge]: https://img.shields.io/crates/v/sntp_request.svg
 [crates-url]: https://crates.io/crates/sntp_request
