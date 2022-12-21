@@ -1,5 +1,3 @@
-extern crate sntp_request;
-
 use std::thread;
 use std::time::Duration;
 
