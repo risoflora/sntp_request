@@ -1,7 +1,5 @@
 //! Basic example for how to obtain a raw NTP timestamp from main NTP server.
 
-extern crate sntp_request;
-
 use sntp_request::SntpRequest;
 
 fn main() {
