@@ -8,11 +8,9 @@
 //! use chrono::{Local, TimeZone};
 //! use sntp_request::SntpRequest;
 //!
-//! fn main() {
-//!     let sntp = SntpRequest::new();
-//!     let timestamp = Local.timestamp_opt(sntp.get_unix_time().unwrap(), 0);
-//!     println!("{}", timestamp.unwrap());
-//! }
+//! let sntp = SntpRequest::new();
+//! let timestamp = Local.timestamp_opt(sntp.get_unix_time().unwrap(), 0);
+//! println!("{}", timestamp.unwrap());
 //! ```
 
 use std::cell::Cell;
@@ -55,6 +53,12 @@ pub type SntpRawTimeResult = io::Result<SntpTimestamp>;
 /// Specialized type for Unix time result.
 pub type SntpUnixTimeResult = io::Result<i64>;
 
+impl Default for SntpRequest {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SntpRequest {
     /// Creates a new SNTP request object.
     pub fn new() -> SntpRequest {
@@ -71,7 +75,7 @@ impl SntpRequest {
         // LI (2 bit) - 3 (not in sync), VN (3 bit) - 4 (version),
         // mode (3 bit) - 3 (client)
         packet[0] = (3 << 6) | (4 << 3) | 3;
-        match self.socket.send_to(&packet, addr) {
+        match self.socket.send_to(packet, addr) {
             Ok(sent) => {
                 if sent != SNTP_PACKET_SIZE {
                     return Err(Error::new(
@@ -81,7 +85,7 @@ impl SntpRequest {
                 }
                 Ok(sent as u32)
             }
-            Err(error) => return Err(error),
+            Err(error) => Err(error),
         }
     }
 
@@ -96,10 +100,11 @@ impl SntpRequest {
                     ));
                 }
                 let hdr = packet[0];
-                if (hdr & 0x38) >> 3 != 4 {
+                let vn = (hdr & 0x38) >> 3;
+                if vn != 4 {
                     return Err(Error::new(
                         ErrorKind::Other,
-                        "Server returned wrong SNTP version",
+                        "Server returned wrong SNTP version {vn}, expected 4.",
                     ));
                 }
                 let mode = hdr & 0x7;
@@ -113,7 +118,7 @@ impl SntpRequest {
                 };
                 Ok(timestamp)
             }
-            Err(error) => return Err(error),
+            Err(error) => Err(error),
         }
     }
 
