@@ -145,7 +145,7 @@ impl SntpRequest {
     pub fn get_unix_time_by_addr<A: ToSocketAddrs>(&self, addr: A) -> SntpUnixTimeResult {
         let raw_time = self.get_raw_time_by_addr(addr)?;
         let raw_secs = raw_time.secs;
-        Ok((raw_secs - SNTP_TIME_OFFSET) as i64)
+        Ok((raw_secs as i64) - (SNTP_TIME_OFFSET as i64))
     }
 
     /// Obtains the raw time from default NTP server address [`POOL_NTP_ADDR`](constant.POOL_NTP_ADDR.html).
