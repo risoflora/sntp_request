@@ -104,7 +104,7 @@ impl SntpRequest {
                 if vn != 4 {
                     return Err(Error::new(
                         ErrorKind::Other,
-                        "Server returned wrong SNTP version {vn}, expected 4.",
+                        format!("Server returned wrong SNTP version {vn}, expected 4."),
                     ));
                 }
                 let mode = hdr & 0x7;
