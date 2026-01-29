@@ -61,13 +61,24 @@ impl Default for SntpRequest {
 
 impl SntpRequest {
     /// Creates a new SNTP request object.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the UDP socket cannot be bound or the timeout cannot be set.
+    /// Use [`try_new`](Self::try_new) for a non-panicking alternative.
     pub fn new() -> SntpRequest {
+        Self::try_new().expect("failed to create SNTP request")
+    }
+
+    /// Creates a new SNTP request object, returning an error instead of
+    /// panicking if the UDP socket cannot be bound or the timeout cannot be set.
+    pub fn try_new() -> io::Result<SntpRequest> {
         let sntp = SntpRequest {
-            socket: UdpSocket::bind("0.0.0.0:0").unwrap(),
+            socket: UdpSocket::bind("0.0.0.0:0")?,
             kiss_of_death: Cell::new(false),
         };
-        sntp.set_timeout(Duration::from_secs(5)).unwrap();
-        sntp
+        sntp.set_timeout(Duration::from_secs(5))?;
+        Ok(sntp)
     }
 
     #[inline]
@@ -104,7 +115,7 @@ impl SntpRequest {
                 if vn != 4 {
                     return Err(Error::new(
                         ErrorKind::Other,
-                        "Server returned wrong SNTP version {vn}, expected 4.",
+                        format!("Server returned wrong SNTP version {vn}, expected 4."),
                     ));
                 }
                 let mode = hdr & 0x7;
@@ -145,7 +156,7 @@ impl SntpRequest {
     pub fn get_unix_time_by_addr<A: ToSocketAddrs>(&self, addr: A) -> SntpUnixTimeResult {
         let raw_time = self.get_raw_time_by_addr(addr)?;
         let raw_secs = raw_time.secs;
-        Ok((raw_secs - SNTP_TIME_OFFSET) as i64)
+        Ok((raw_secs as i64) - (SNTP_TIME_OFFSET as i64))
     }
 
     /// Obtains the raw time from default NTP server address [`POOL_NTP_ADDR`](constant.POOL_NTP_ADDR.html).
